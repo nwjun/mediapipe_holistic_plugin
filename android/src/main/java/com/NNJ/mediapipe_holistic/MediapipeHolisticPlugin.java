@@ -1,5 +1,6 @@
 package com.NNJ.mediapipe_holistic;
 
+import android.content.pm.PackageManager;
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.SurfaceTexture;
@@ -10,6 +11,7 @@ import android.util.Size;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
@@ -32,6 +34,7 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
+import io.flutter.plugin.common.PluginRegistry;
 
 /** MediapipeHolisticPlugin */
 public class MediapipeHolisticPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
@@ -44,6 +47,8 @@ public class MediapipeHolisticPlugin implements FlutterPlugin, MethodCallHandler
   private MethodChannel channel;
   private Activity activity;
   private Context context;
+  private ActivityPluginBinding activityPluginBinding;
+
   // {@link SurfaceTexture} where the camera-preview frames can be accessed.
   private SurfaceTexture previewFrameTexture = null;
   // {@link SurfaceView} that displays the camera-preview frames processed by a MediaPipe graph.
@@ -84,7 +89,6 @@ public class MediapipeHolisticPlugin implements FlutterPlugin, MethodCallHandler
     eventChannel.setStreamHandler(landmarksStreamHandler());
 
     this.context = flutterPluginBinding.getApplicationContext();
-
     // Must be set only after context is assigned
     previewDisplayView = new SurfaceView(context);
     processor = new FrameProcessor(
@@ -102,15 +106,28 @@ public class MediapipeHolisticPlugin implements FlutterPlugin, MethodCallHandler
             .getPlatformViewRegistry()
             .registerViewFactory(NAMESPACE+"/view", new NativeViewFactory());
 
-    //   r.addRequestPermissionsResultListener(CameraRequestPermissionsListener());
     setupPreviewDisplayView();
     // Initialize asset manager so that MediaPipe native libraries can access the app assets, e.g.,
     // binary graphs.
     AndroidAssetUtil.initializeNativeAssetManager(activity);
     setupProcess();
+    activityPluginBinding.addRequestPermissionsResultListener(CameraRequestPermissionsListener());
     PermissionHelper.checkAndRequestCameraPermissions(activity);
     if(PermissionHelper.cameraPermissionsGranted(activity)) onResume();
+  }
 
+  private PluginRegistry.RequestPermissionsResultListener CameraRequestPermissionsListener() {
+    return (requestCode, permissions, grantResults) -> {
+      if(requestCode != 0){
+        return false;
+      } else{
+        for (int result:grantResults){
+          if(result == PackageManager.PERMISSION_GRANTED) onResume();
+          else Toast.makeText(activity, "Please allow permission for camera", Toast.LENGTH_LONG).show();
+        }
+        return true;
+      }
+    };
   }
 
   private void setupProcess() {
@@ -252,6 +269,7 @@ public class MediapipeHolisticPlugin implements FlutterPlugin, MethodCallHandler
   @Override
   public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
     this.activity = binding.getActivity();
+    this.activityPluginBinding = binding;
   }
 
   @Override

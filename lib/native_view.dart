@@ -3,11 +3,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:mediapipe_holistic/gen/landmark.pb.dart';
 
 const NAMESPACE = 'mediapipe_holistic';
 
 class NativeViewDart extends StatelessWidget {
-  const NativeViewDart({Key? key}) : super(key: key);
+  final CreatePlatformViewCallback createPlatformViewCallback;
+
+  const NativeViewDart({Key? key, required this.createPlatformViewCallback})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -16,31 +20,27 @@ class NativeViewDart extends StatelessWidget {
     // Pass parameters to the platform side.
     const Map<String, dynamic> creationParams = <String, dynamic>{};
 
-    switch(defaultTargetPlatform){
+    switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-      // hybrid composition
+        // virtual display
+        return const AndroidView(
+          viewType: viewType,
+          layoutDirection: TextDirection.ltr,
+          creationParams: creationParams,
+          creationParamsCodec: StandardMessageCodec(),
+        );
+        // hybrid composition
         return PlatformViewLink(
           viewType: viewType,
-          surfaceFactory: (BuildContext context, PlatformViewController controller) {
+          surfaceFactory:
+              (BuildContext context, PlatformViewController controller) {
             return AndroidViewSurface(
                 controller: controller as AndroidViewController,
                 hitTestBehavior: PlatformViewHitTestBehavior.opaque,
-                gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{});
+                gestureRecognizers: const <
+                    Factory<OneSequenceGestureRecognizer>>{});
           },
-          onCreatePlatformView: (PlatformViewCreationParams params) {
-            return PlatformViewsService.initSurfaceAndroidView(
-              id: params.id,
-              viewType: viewType,
-              layoutDirection: TextDirection.ltr,
-              creationParams: creationParams,
-              creationParamsCodec: const StandardMessageCodec(),
-              onFocus: () {
-                params.onFocusChanged(true);
-              },
-            )
-              ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
-              ..create();
-          },
+          onCreatePlatformView: createPlatformViewCallback,
         );
       default:
         throw UnsupportedError('Unsupported platform view');

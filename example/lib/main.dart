@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:mediapipe_holistic/gen/landmark.pb.dart';
 import 'package:mediapipe_holistic/mediapipe_holistic.dart';
+import 'package:mediapipe_holistic/native_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,8 +18,10 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-
+  final NAMESPACE = 'mediapipe_holistic';
+  final Map<String, dynamic> creationParams = <String, dynamic>{};
+  HolisticViewController? _controller;
+  var landmark=null;
   @override
   void initState() {
     super.initState();
@@ -27,23 +31,22 @@ class _MyAppState extends State<MyApp> {
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initPlatformState() async {
     String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion =
-          await MediapipeHolistic.platformVersion ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
-
     // If the widget was removed from the tree while the asynchronous platform
     // message was in flight, we want to discard the reply rather than calling
     // setState to update our non-existent appearance.
     if (!mounted) return;
 
-    setState(() {
-      _platformVersion = platformVersion;
-    });
+  }
+
+  void _onLandMarkStream(NormalizedLandmarkList landmarkList) {
+    if (landmarkList.landmark != null && landmarkList.landmark.length != 0) {
+      print(landmarkList.landmark);
+      setState(() {
+        landmark = landmarkList.landmark;
+      });
+
+    } else
+      print('jsafjasflkajsf');
   }
 
   @override
@@ -53,8 +56,27 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('Plugin example app'),
         ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                height: 300,
+                child: HolisticView(
+                  onViewCreated: (HolisticViewController c) => setState(() {
+                    _controller = c;
+                    if (_controller != null)
+                      _controller?.landMarksStream.listen(_onLandMarkStream);
+                  }),
+                ),),
+              _controller == null?
+                  Text('Please grant camera permissions and reopen the application')
+                  : Column(
+                children: [
+                  Text(landmark==null?"no landmarks":landmark.toString()),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );
